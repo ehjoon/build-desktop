@@ -37,7 +37,7 @@ Optional arguments:
 EOF
 }
 
-if ! ARGS=`getopt -o j: -l jobs:,help,version -n build-webos-desktop.sh -- "$@"` ; then
+if ! ARGS=`getopt -o jt: -l jobs:,help,version -n build-webos-desktop.sh -- "$@"` ; then
     exit 2
 fi
 
@@ -45,6 +45,10 @@ eval set -- "$ARGS"
 
 while true ; do
     case "$1" in
+        -t)
+            BUILD_TARGET=$2
+            echo Build target: $BUILD_TARGET...
+            break ;;
         -j|--jobs)
             PROCS=$2
             shift 2 ;;
@@ -68,7 +72,7 @@ if [ "$1" = "clean" ] ; then
   shift
 elif  [ -n "$1" ] ; then
     echo "Parameter $1 not recognized"
-    exit 1
+#    exit 1
 else
   export SKIPSTUFF=1
   set -e
@@ -278,7 +282,7 @@ function build_cjson
 ##########################
 function build_pbnjson
 {
-    do_fetch openwebos/libpbnjson $1 pbnjson submissions/
+#    do_fetch openwebos/libpbnjson $1 pbnjson submissions/
     set_source_dir $BASE/pbnjson  $PBNJSON_DIR
 
     mkdir -p build
@@ -299,6 +303,32 @@ function build_pbnjson
 ###########################
 #  Fetch and build pmloglib
 ###########################
+
+function build_librdx
+{
+#    do_fetch openwebos/pmlogdaemon $1 pmlogdaemon submissions/
+    set_source_dir $BASE/librdx $LIBRDX_DIR
+
+    mkdir -p build
+    cd build
+    $CMAKE .. -DNO_TESTS=True -DNO_UTILS=True -DWEBOS_INSTALL_ROOT:PATH=${LUNA_STAGING} -DCMAKE_INSTALL_PREFIX=${LUNA_STAGING} -DCMAKE_BUILD_TYPE=Release
+    make $JOBS
+    make install
+}
+
+function build_pmlogdaemon
+{
+#    do_fetch openwebos/pmlogdaemon $1 pmlogdaemon submissions/
+    set_source_dir $BASE/pmlogdaemon  $PMLOGDAEMON_DIR
+
+    mkdir -p build
+    cd build
+    $CMAKE .. -DNO_TESTS=True -DNO_UTILS=True -DWEBOS_INSTALL_ROOT:PATH=${LUNA_STAGING} -DCMAKE_INSTALL_PREFIX=${LUNA_STAGING} -DCMAKE_BUILD_TYPE=Release
+    make $JOBS
+    make install
+}
+
+
 function build_pmloglib
 {
     do_fetch openwebos/pmloglib $1 pmloglib submissions/
@@ -306,10 +336,23 @@ function build_pmloglib
 
     mkdir -p build
     cd build
-    $CMAKE .. -DNO_TESTS=True -DNO_UTILS=True -DCMAKE_INSTALL_PREFIX=${LUNA_STAGING} -DCMAKE_BUILD_TYPE=Release
+    $CMAKE .. -DNO_TESTS=True -DNO_UTILS=True -DWEBOS_INSTALL_ROOT:PATH=${LUNA_STAGING} -DCMAKE_INSTALL_PREFIX=${LUNA_STAGING} -DCMAKE_BUILD_TYPE=Release
     make $JOBS
     make install
 }
+
+function build_pmloglib-private
+{
+    do_fetch openwebos/pmloglib $1 pmloglib-private submissions/
+    set_source_dir $BASE/pmloglib-private  $PMLOGLIB_PRIVATE_DIR
+
+    mkdir -p build
+    cd build
+    $CMAKE .. -DBUILD_PRIVATE=ON -DNO_TESTS=True -DNO_UTILS=True -DWEBOS_INSTALL_ROOT:PATH=${LUNA_STAGING} -DCMAKE_INSTALL_PREFIX=${LUNA_STAGING} -DCMAKE_BUILD_TYPE=Release
+    make $JOBS
+    make install
+}
+
 
 ##########################
 #  Fetch and build nyx-lib
@@ -366,7 +409,7 @@ function build_qt4
 ################################
 function build_luna-service2
 {
-    do_fetch openwebos/luna-service2 $1 luna-service2 submissions/
+    #do_fetch openwebos/luna-service2 $1 luna-service2 submissions/
 
     set_source_dir $BASE/luna-service2 $LUNA_SERVICE2_DIR
 
@@ -591,7 +634,7 @@ function build_luna-init
 #################################
 function build_luna-sysservice
 {
-    do_fetch openwebos/luna-sysservice $1 luna-sysservice submissions/
+    #do_fetch openwebos/luna-sysservice $1 luna-sysservice submissions/
 
     set_source_dir $BASE/luna-sysservice  $LUNA_SYSSERVICE_DIR
 
@@ -613,6 +656,45 @@ function build_luna-sysservice
     mkdir -p $ROOTFS/etc/palm/backup
     cp -f ../desktop-support/com.palm.systemservice.backupRegistration.json $ROOTFS/etc/palm/backup/com.palm.systemservice
 }
+
+#################################
+# Fetch and build settingsservice
+#################################
+function build_settingsservice
+{
+    #do_fetch openwebos/luna-sysservice $1 settingsservice submissions/
+
+    set_source_dir $BASE/settingsservice $SETTINGSERVICE_DIR
+
+    mkdir -p build
+    cd build
+    $CMAKE -D WEBOS_INSTALL_ROOT:PATH=${LUNA_STAGING} ..
+	echo "ssignal print>> " $JOBS
+    make $JOBS
+    make install
+
+    # NOTE: Make binary findable in /usr/lib/luna so ls2 can match the role file
+    cp -f SettingsService $ROOTFS/usr/lib/luna/
+
+    # TODO: cmake should do this for us (once we have configurable-for-desktop files)
+    cp -rf ../conf/* ${ROOTFS}/etc/palm
+    cp -rf ../files/conf/* ${ROOTFS}/etc/palm
+    cp -rf ../files/db8/kinds/* $ROOTFS/etc/palm/db/kinds/ 2>/dev/null || true
+    cp -rf ../files/db8/permissions/* $ROOTFS/etc/palm/db/permissions/ 2>/dev/null || true
+    cp -f ../desktop-support/com.lge.settingsservice.json.pub $ROOTFS/usr/share/ls2/roles/pub/com.lge.settingsservice.json
+    cp -f ../desktop-support/com.lge.settingsservice.json.prv $ROOTFS/usr/share/ls2/roles/prv/com.lge.settingsservice.json
+    cp -f ../desktop-support/com.lge.settingsservice.service.pub $ROOTFS/usr/share/ls2/services/com.lge.settingsservice.service
+    cp -f ../desktop-support/com.lge.settingsservice.service.prv $ROOTFS/usr/share/ls2/system-services/com.lge.settingsservice.service
+    cp -f ../desktop-support/com.webos.settingsservice.json.pub $ROOTFS/usr/share/ls2/roles/pub/com.webos.settingsservice.json
+    cp -f ../desktop-support/com.webos.settingsservice.json.prv $ROOTFS/usr/share/ls2/roles/prv/com.webos.settingsservice.json
+    cp -f ../desktop-support/com.webos.settingsservice.service.pub $ROOTFS/usr/share/ls2/services/com.webos.settingsservice.service
+    cp -f ../desktop-support/com.webos.settingsservice.service.prv $ROOTFS/usr/share/ls2/system-services/com.webos.settingsservice.service
+    mkdir -p $ROOTFS/etc/palm/backup
+    cp -f ../desktop-support/com.lge.settingsservice.backupRegistration.json $ROOTFS/etc/palm/backup/com.lge.settingsservice
+    cp -f ../desktop-support/com.webos.settingsservice.backupRegistration.json $ROOTFS/etc/palm/backup/com.webos.settingsservice
+}
+
+
 
 ###########################################
 #  Fetch and build enyo 1.0
@@ -1232,6 +1314,24 @@ function build_leveldb
     ln -sf ${LUNA_STAGING}/lib/lib${LIB_NAME}.so.${LIB_VER} ${LUNA_STAGING}/lib/lib${LIB_NAME}.so.1
 }
 
+#################################
+# Fetch and build sam
+#################################
+function build_sam
+{
+	#set_source_dir ABSOLUTE_DIR_OF_SAM $SAM_DIR
+	cd $BASE/sam
+
+	mkdir -p build
+	cd build
+	export LDFLAGS="-Wl,-rpath-link $LUNA_STAGING/lib"
+	$CMAKE -D WEBOS_INSTALL_ROOT:PATH=${LUNA_STAGING} -DCMAKE_INSTALL_PREFIX=${LUNA_STAGING} ..
+	make $JOBS
+	make install
+
+	cp -f sam "${ROOTFS}/usr/lib/luna/"
+}
+
 #####################
 # Fetch and build db8
 #####################
@@ -1570,57 +1670,67 @@ fi
 
 # Build a local version of cmake 2.8.7 so that cmake-modules-webos doesn't have to write to the OS-supplied CMake modules directory
 build cmake
-build cmake-modules-webos 12
+build cmake-modules-webos 18
+
+if [ "$BUILD_TARGET" != "" ] ; then
+  build $BUILD_TARGET
+  post_build
+  exit
+fi
 
 build cjson 35
 build pbnjson 7
-build pmloglib 21
-build nyx-lib 58
-build luna-service2 147
-build qt4 4
-build npapi-headers 0.4
-build luna-webkit-api 1.01
-build webkit 0.54
+#build librdx 9
+build pmloglib 41
+build pmloglib-private 39
+build pmlogdaemon 112
+#build nyx-lib 58
+build luna-service2 157 
+#build qt4 4
+#build npapi-headers 0.4
+#build luna-webkit-api 1.01
+#build webkit 0.54
 
-build luna-sysmgr-ipc 2
-build luna-sysmgr-ipc-messages 2
-build luna-sysmgr-common 4
-build luna-sysmgr $LSM_TAG
-build keyboard-efigs 1.02
+#build luna-sysmgr-ipc 2
+#build luna-sysmgr-ipc-messages 2
+#build luna-sysmgr-common 4
+#build luna-sysmgr $LSM_TAG
+#build keyboard-efigs 1.02
 
-build webappmanager 4
-build luna-init 1.03
-build luna-prefs 1.01
-build luna-sysservice 2
-build librolegen 16
+#build webappmanager 4
+#build luna-init 1.03
+#build luna-prefs 1.01
+#build luna-sysservice 2
+build settingsservice 2
+#build librolegen 16
 ##build serviceinstaller 1.01
-build luna-universalsearchmgr 1.00
+#build luna-universalsearchmgr 1.00
 
-build luna-applauncher 1.00
-build luna-systemui 1.02
+#build luna-applauncher 1.00
+#build luna-systemui 1.02
 
-build enyo-1.0 128.2
-build core-apps 2
-build isis-browser 0.21
-build isis-fonts v0.1
+#build enyo-1.0 128.2
+#build core-apps 2
+#build isis-browser 0.21
+#build isis-fonts v0.1
+#
+#build foundation-frameworks 1.0
+#build mojoservice-frameworks 1.0
+#build loadable-frameworks 1.0.1
+#build app-services 1.02
+#build mojolocation-stub 2
+#build pmnetconfigmanager-stub 3
 
-build foundation-frameworks 1.0
-build mojoservice-frameworks 1.0
-build loadable-frameworks 1.0.1
-build app-services 1.02
-build mojolocation-stub 2
-build pmnetconfigmanager-stub 3
+#build underscore 8
+#build mojoloader 8
+#build mojoservicelauncher 71
 
-build underscore 8
-build mojoloader 8
-build mojoservicelauncher 71
-
-build WebKitSupplemental 0.4
-build AdapterBase 0.2
+#build WebKitSupplemental 0.4
+#build AdapterBase 0.2
 # BrowserServer 0.7.1 includes (only) desktop-specific changes to build with libpbnjson 7
-build BrowserServer 0.7.1
+#build BrowserServer 0.7.1
 # BrowserAdapter 0.4.1 includes (only) desktop-specific changes to build with libpbnjson 7
-build BrowserAdapter 0.4.1
+#build BrowserAdapter 0.4.1
 
 build nodejs 34
 build node-addon sysbus 25
@@ -1632,14 +1742,16 @@ build db8 63
 build configurator 49
 
 build activitymanager 110
-build pmstatemachineengine 13
-build libpalmsocket 30
-build libsandbox 15
-build jemalloc 11
-build filecache 55
+#build pmstatemachineengine 13
+#build libpalmsocket 30
+#build libsandbox 15
+#build jemalloc 11
+#build filecache 55
+
+#build sam 1.00
 
 #NOTE: mojomail depends on libsandbox, libpalmsocket, and pmstatemachine;
-build mojomail 99
+#build mojomail 99
 
 post_build
 

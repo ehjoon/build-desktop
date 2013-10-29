@@ -31,7 +31,7 @@ usage() {
 	Commands:
 	    start                      Starts the pub/priv ls-hubd instances
 	    services                   Starts the static native services
-                                       (LunaSysService, filecache, activitymanager, mojodb-luna)
+                                       (SettingsService, LunaSysService, filecache, activitymanager, mojodb-luna)
                                        (services can also be started individually by name)
 	    init                       Perform first-time initialization (db and local account)
 	    send                       Sends a service bus request (using luna-send)
@@ -187,7 +187,7 @@ USR_SBIN_DIR="${STAGING_DIR}/usr/sbin"
 ETC_DIR="${STAGING_DIR}/etc"
 # NOTE: this links to ROOTFS/usr/lib/luna which is what the role and service files refer to
 SERVICE_BIN_DIR="/usr/lib/luna"
-STATIC_SERVICES="LunaSysService filecache activitymanager mojodb-luna LunaUniversalSearchMgr"
+STATIC_SERVICES="LunaSysService filecache activitymanager mojodb-luna SettingsService LunaUniversalSearchMgr PmLogDaemon"
 
 # TODO: Consider moving ls2 dir to traditional locations (requires changes to scripts AND .conf files)
 CONF_DIR="${ROOTFS}/etc"
@@ -241,6 +241,8 @@ services)
   services_start
   echo
   ;;
+SettingsService)
+  service_start SettingsService;;
 LunaSysService)
   service_start LunaSysService ;;
 filecache)
@@ -262,6 +264,7 @@ init)
   service_start mojodb-luna -c /etc/palm/mojodb.conf /var/db
   luna-send -n 1 palm://com.palm.configurator/run '{"types":["dbkinds","filecache"]}'
   luna-send -n 1 palm://com.palm.configurator/run '{"types":["dbpermissions"]}'
+  service_start SettingsService
   service_start LunaSysService
   service_start activitymanager
   luna-send -n 1 palm://com.palm.service.accounts/createLocalAccount '{}'
