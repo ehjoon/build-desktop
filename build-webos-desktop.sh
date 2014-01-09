@@ -282,12 +282,12 @@ function build_cjson
 ##########################
 function build_pbnjson
 {
-#    do_fetch openwebos/libpbnjson $1 pbnjson submissions/
+    do_fetch openwebos/libpbnjson $1 pbnjson submissions/
     set_source_dir $BASE/pbnjson  $PBNJSON_DIR
 
     mkdir -p build
     cd build
-    $CMAKE -D WEBOS_INSTALL_ROOT:PATH=${LUNA_STAGING} ..
+    $CMAKE -D WEBOS_INSTALL_ROOT:PATH=${LUNA_STAGING} -DWITH_DOCS:BOOL=FALSE -DWITH_TESTS:BOOL=FALSE  ..
     make $JOBS
     make install
 
@@ -668,7 +668,7 @@ function build_settingsservice
 
     mkdir -p build
     cd build
-    $CMAKE -D WEBOS_INSTALL_ROOT:PATH=${LUNA_STAGING} ..
+    $CMAKE -D WEBOS_INSTALL_ROOT:PATH=${LUNA_STAGING} -DWEBOS_COMPONENT_VERSION="1.0.0" ..
 	echo "ssignal print>> " $JOBS
     make $JOBS
     make install
@@ -1679,9 +1679,9 @@ if [ "$BUILD_TARGET" != "" ] ; then
 fi
 
 build cjson 35
-build pbnjson 7
+build pbnjson 24
 #build librdx 9
-build pmloglib 41
+build pmloglib 47
 build pmloglib-private 39
 build pmlogdaemon 112
 #build nyx-lib 58
